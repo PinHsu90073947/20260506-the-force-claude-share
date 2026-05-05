@@ -1009,6 +1009,34 @@
     else if (e.key === '?') { document.getElementById('shortcutsOverlay').classList.toggle('show'); }
   });
 
+  // Touch navigation for mobile: swipe left/right, or tap left/right half
+  let touchStartX = 0, touchStartY = 0, touchStartT = 0;
+  document.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) return;
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    touchStartT = Date.now();
+  }, { passive: true });
+  document.addEventListener('touchend', (e) => {
+    if (e.changedTouches.length !== 1) return;
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    const dt = Date.now() - touchStartT;
+    const absDx = Math.abs(dx), absDy = Math.abs(dy);
+    // Swipe: horizontal motion > 50px and dominant over vertical
+    if (absDx > 50 && absDx > absDy) {
+      if (dx < 0) showSlide(current + 1);
+      else showSlide(current - 1);
+      return;
+    }
+    // Tap: minimal movement, quick gesture
+    if (absDx < 10 && absDy < 10 && dt < 400) {
+      const w = window.innerWidth;
+      if (e.changedTouches[0].clientX < w / 2) showSlide(current - 1);
+      else showSlide(current + 1);
+    }
+  }, { passive: true });
+
   showSlide(0);
 </script>
 </body>
