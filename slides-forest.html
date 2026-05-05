@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude 使用分享會 — Forest</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+  :root {
+    --bg: #1c2520;
+    --surface: #263028;
+    --surface-alt: #303a32;
+    --accent: #6da85e;
+    --accent-light: #8fc880;
+    --accent-dim: #4f8042;
+    --text: #e0e8dc;
+    --text-dim: #8a9a85;
+    --code-bg: #1d2620;
+    --border: #364038;
+    --border-light: #4a5648;
+    --green: #b8d8a8;
+    --red: #d8806e;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Noto Sans TC', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  /* ===== Slide base ===== */
+  .slide {
+    display: none;
+    width: 100vw;
+    height: 100vh;
+    padding: 56px 100px;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+  }
+  .slide.active { display: flex; }
+  .slide.center { align-items: center; text-align: center; }
+  .slide.top { justify-content: flex-start; padding-top: 80px; }
+
+  /* ===== Global UI ===== */
+  .progress { position: fixed; top: 0; left: 0; height: 3px; background: linear-gradient(90deg, var(--accent), var(--accent-light)); transition: width 0.4s ease; z-index: 100; }
+  .page-num { position: fixed; bottom: 28px; right: 40px; font-size: 13px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; z-index: 100; }
+  .nav-hint { position: fixed; bottom: 28px; left: 40px; font-size: 12px; color: var(--text-dim); opacity: 0.4; font-family: 'JetBrains Mono', monospace; z-index: 100; }
+
+  /* ===== Reusable ===== */
+  h2 { font-size: 40px; font-weight: 700; margin-bottom: 44px; }
+  h2 .accent { color: var(--accent-light); }
+
+  .card {
+    background: var(--surface);
+    border-radius: 14px;
+    padding: 32px;
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    transition: all 0.25s ease;
+  }
+  .card:hover { border-color: var(--border-light); box-shadow: 0 4px 20px rgba(0,0,0,0.25); }
+
+  .code-block {
+    background: var(--code-bg);
+    border-radius: 10px;
+    padding: 18px 24px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    border: 1px solid var(--border);
+    line-height: 1.7;
+    overflow-x: auto;
+  }
+  .code-block .prompt { color: var(--accent); user-select: none; }
+  .code-block .cmd { color: var(--text); }
+  .code-block .flag { color: var(--accent-dim); }
+  .code-block .comment { color: var(--text-dim); }
+  .code-block .kw { color: var(--accent-light); }
+  .code-block .str { color: var(--green); }
+
+  .tag { font-size: 11px; font-weight: 500; padding: 3px 12px; border-radius: 20px; background: var(--surface-alt); color: var(--text-dim); white-space: nowrap; }
+  .tag.demo { background: rgba(109,168,94,0.15); color: var(--accent-light); }
+  .tag.explore { background: rgba(184,216,168,0.15); color: var(--green); }
+
+  .demo-tag { display: inline-block; font-size: 12px; padding: 3px 12px; border-radius: 20px; background: rgba(109,168,94,0.15); color: var(--accent-light); font-weight: 500; margin-left: 12px; vertical-align: middle; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; max-width: 1100px; width: 100%; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; max-width: 1100px; width: 100%; }
+
+  .badge { position: absolute; top: -12px; right: 20px; background: linear-gradient(135deg, var(--accent), var(--accent-light)); color: #0a1408; font-size: 11px; font-weight: 700; padding: 5px 16px; border-radius: 20px; letter-spacing: 0.5px; }
+
+  .icon-box { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: rgba(109,168,94,0.12); }
+
+  .section-label { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; color: var(--accent); }
+
+  .flow-arrow { color: var(--accent); font-size: 28px; display: flex; align-items: center; justify-content: center; }
+
+  .quote-block { border-left: 3px solid var(--accent); padding: 20px 28px; background: var(--surface); border-radius: 0 12px 12px 0; font-size: 20px; line-height: 1.8; color: var(--text); max-width: 900px; }
+  .quote-block .highlight { color: var(--accent-light); font-weight: 600; }
+
+  .step-num { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--accent); opacity: 0.6; min-width: 28px; }
+
+  .feedback-item { background: var(--surface); border-radius: 10px; padding: 18px 22px; border: 1px solid var(--border); margin-bottom: 12px; }
+  .feedback-item .fb-title { font-weight: 600; font-size: 15px; margin-bottom: 6px; }
+  .feedback-item .fb-rule { font-size: 14px; color: var(--text-dim); line-height: 1.6; }
+
+  .compare-table { width: 100%; border-collapse: collapse; }
+  .compare-table th { text-align: left; font-size: 13px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; padding: 10px 16px; border-bottom: 1px solid var(--border); }
+  .compare-table td { font-size: 16px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  .compare-table td:first-child { color: var(--text-dim); }
+
+  .idea-card { background: var(--surface); border-radius: 12px; padding: 24px; border: 1px solid var(--border); }
+  .idea-card h4 { font-size: 17px; font-weight: 600; margin-bottom: 8px; color: var(--accent-light); }
+  .idea-card p { font-size: 14px; color: var(--text-dim); line-height: 1.6; }
+
+  /* ===== Shortcuts overlay ===== */
+  .shortcuts-overlay { display: none; position: fixed; inset: 0; background: rgba(12,18,12,0.65); z-index: 200; align-items: center; justify-content: center; }
+  .shortcuts-overlay.show { display: flex; }
+  .shortcuts-box { background: var(--surface); border-radius: 16px; padding: 32px; border: 1px solid var(--border); min-width: 320px; }
+  .shortcuts-box h3 { font-size: 18px; margin-bottom: 16px; color: var(--accent-light); }
+  .shortcuts-box .row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 15px; }
+  .shortcuts-box .row span:first-child { color: var(--text-dim); }
+  .shortcuts-box kbd { background: var(--code-bg); border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px; font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress"></div>
+<div class="page-num" id="pageNum"></div>
+<div class="nav-hint">&larr; &rarr; / Space</div>
+
+<!-- ==================== Page 1: Title ==================== -->
+<div class="slide center active">
+  <div style="width:88px;height:88px;border-radius:22px;background:linear-gradient(135deg,var(--accent),var(--accent-light));display:flex;align-items:center;justify-content:center;margin-bottom:44px;box-shadow:0 4px 30px rgba(109,168,94,0.25),0 0 60px rgba(109,168,94,0.1);">
+    <img src="img/claude_icon.png" width="52" height="52" alt="Claude" style="border-radius:8px;">
+  </div>
+  <h1 style="font-size:76px;font-weight:900;letter-spacing:-2px;background:linear-gradient(135deg,#fff,#dce8d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:20px;">Claude 使用分享會</h1>
+  <p style="font-size:21px;color:var(--text-dim);font-weight:300;margin-bottom:64px;line-height:1.6;letter-spacing:0.5px;">從 CLI 工具到團隊自動化 — 實戰經驗分享</p>
+  <div style="font-size:16px;color:var(--text-dim);border-top:1px solid var(--border);padding-top:24px;letter-spacing:0.5px;">
+    <span style="color:var(--accent-light);font-weight:500;">徐至平 Pin</span> &nbsp;|&nbsp; 2026.05.06
+  </div>
+</div>
+
+<!-- ==================== Page 2: Agenda ==================== -->
+<div class="slide center">
+  <div style="max-width:700px;width:100%;text-align:left;">
+    <h2 style="color:var(--accent-light);">大綱</h2>
+    <ul style="list-style:none;">
+      <li style="font-size:24px;padding:14px 24px;border-left:3px solid transparent;border-radius:0 10px 10px 0;display:flex;align-items:center;gap:18px;">
+        <span class="step-num">01</span> Claude 基礎設置 <span class="tag" style="margin-left:auto;">~5 min</span>
+      </li>
+      <li style="font-size:24px;padding:14px 24px;border-left:3px solid transparent;border-radius:0 10px 10px 0;display:flex;align-items:center;gap:18px;margin-top:8px;border-top:1px solid var(--border);padding-top:18px;">
+        <span class="step-num">02</span> 進入實務的範例
+      </li>
+      <li style="font-size:24px;padding:14px 24px;border-left:3px solid transparent;border-radius:0 10px 10px 0;display:flex;align-items:center;gap:18px;">
+        <span class="step-num">03</span> 週進度助手 <span class="tag demo" style="margin-left:auto;">Demo</span>
+      </li>
+      <li style="font-size:24px;padding:14px 24px;border-left:3px solid transparent;border-radius:0 10px 10px 0;display:flex;align-items:center;gap:18px;">
+        <span class="step-num">04</span> Google Sheet 翻譯助手 <span class="tag demo" style="margin-left:auto;">Demo</span>
+      </li>
+      <li style="font-size:24px;padding:14px 24px;border-left:3px solid transparent;border-radius:0 10px 10px 0;display:flex;align-items:center;gap:18px;">
+        <span class="step-num">05</span> 遊戲專案自動更新多語系表 <span class="tag demo" style="margin-left:auto;">Demo</span>
+      </li>
+      <li style="font-size:24px;padding:14px 24px;border-left:3px solid transparent;border-radius:0 10px 10px 0;display:flex;align-items:center;gap:18px;">
+        <span class="step-num">06</span> Cocos MCP 搭建 Unity 介面 <span class="tag demo" style="margin-left:auto;">Demo</span>
+      </li>
+      <li style="font-size:24px;padding:14px 24px;border-left:3px solid transparent;border-radius:0 10px 10px 0;display:flex;align-items:center;gap:18px;">
+        <span class="step-num">07</span> 醞釀中的想法 <span class="tag explore" style="margin-left:auto;">探索中</span>
+      </li>
+      <li style="font-size:24px;padding:14px 24px;border-left:3px solid transparent;border-radius:0 10px 10px 0;display:flex;align-items:center;gap:18px;">
+        <span class="step-num">08</span> Q&A
+      </li>
+    </ul>
+  </div>
+</div>
+
+<!-- ==================== Page 3: Setup ==================== -->
+<div class="slide center">
+  <div style="max-width:1100px;width:100%;text-align:left;">
+    <h2>Claude 基礎設置</h2>
+    <div class="grid-2">
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;">
+          <div class="icon-box"><img src="img/homebrew.svg" width="32" height="32" alt="Homebrew"></div>
+          <h3 style="font-size:21px;font-weight:600;">Step 1 — Homebrew</h3>
+        </div>
+        <p style="font-size:16px;color:var(--text-dim);line-height:1.7;margin-bottom:20px;">Mac 上的套件管理工具，一行指令安裝各種開發工具。</p>
+        <div class="code-block"><span class="prompt">$ </span><span class="cmd">brew install claude-code</span></div>
+        <div style="display:flex;gap:12px;margin-top:20px;">
+          <span class="tag">macOS</span>
+          <span class="tag">Homebrew</span>
+        </div>
+      </div>
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;">
+          <div class="icon-box">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="4" stroke="#6da85e" stroke-width="2"/><path d="M8 12h8M12 8v8" stroke="#6da85e" stroke-width="2" stroke-linecap="round"/></svg>
+          </div>
+          <h3 style="font-size:21px;font-weight:600;">Step 2 — 登入啟用</h3>
+        </div>
+        <p style="font-size:16px;color:var(--text-dim);line-height:1.7;margin-bottom:20px;">安裝完成後，在終端機輸入 claude 即可啟動，首次使用會引導登入 Anthropic 帳號。</p>
+        <div class="code-block"><span class="prompt">$ </span><span class="cmd">claude</span><br><span class="comment">  # 首次啟動會開啟瀏覽器登入</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== Page 4: CLI ==================== -->
+<div class="slide center">
+  <div style="max-width:1100px;width:100%;text-align:left;">
+    <h2>開啟 Claude CLI</h2>
+    <div class="grid-2" style="margin-bottom:32px;">
+      <div class="card">
+        <h3 style="font-size:18px;margin-bottom:8px;color:var(--text-dim);font-weight:400;">一般開啟方式</h3>
+        <div class="code-block" style="margin-top:16px;"><span class="prompt">$ </span><span class="cmd">claude</span></div>
+        <div style="margin-top:16px;font-size:14px;color:var(--text-dim);line-height:1.6;padding-left:14px;border-left:2px solid var(--border);">每次執行檔案操作或指令前<br>都會跳出確認提示</div>
+      </div>
+      <div class="card" style="position:relative;border-color:var(--accent-dim);box-shadow:0 2px 24px rgba(109,168,94,0.12);background:linear-gradient(135deg,var(--surface),rgba(109,168,94,0.04));">
+        <div class="badge">RECOMMENDED</div>
+        <h3 style="font-size:18px;margin-bottom:8px;color:var(--text-dim);font-weight:400;">推薦開啟方式</h3>
+        <div class="code-block" style="margin-top:16px;font-size:14px;"><span class="prompt">$ </span><span class="cmd">claude <span class="flag">--dangerously-skip-permissions</span></span></div>
+        <div style="margin-top:16px;font-size:14px;color:var(--accent-light);line-height:1.6;padding-left:14px;border-left:2px solid var(--accent);">跳過所有權限確認，工作流程更順暢<br>僅限個人開發機使用，勿在共用環境開啟</div>
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="card" style="display:flex;align-items:center;gap:22px;padding:24px 28px;">
+        <div class="icon-box" style="width:52px;height:52px;overflow:hidden;"><img src="img/cmux_logo.png" width="40" height="40" alt="cmux" style="border-radius:6px;"></div>
+        <div>
+          <h4 style="font-size:18px;font-weight:600;margin-bottom:4px;font-family:'JetBrains Mono',monospace;">cmux</h4>
+          <p style="font-size:14px;color:var(--text-dim);line-height:1.6;">遠端 Server 上的多窗終端管理<br>適合在編版機上同時跑多個 Claude</p>
+        </div>
+      </div>
+      <div class="card" style="display:flex;align-items:center;gap:22px;padding:24px 28px;">
+        <div class="icon-box" style="width:52px;height:52px;overflow:hidden;"><img src="img/betterAgent_logo.png" width="40" height="40" alt="BetterAgentTerminal" style="border-radius:6px;"></div>
+        <div>
+          <h4 style="font-size:18px;font-weight:600;margin-bottom:4px;font-family:'JetBrains Mono',monospace;">BetterAgentTerminal</h4>
+          <p style="font-size:14px;color:var(--text-dim);line-height:1.6;">本機更好的 Claude CLI 互動介面<br>可視化對話歷程與工具呼叫</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== Page 5: Memory ==================== -->
+<div class="slide center">
+  <div style="max-width:1100px;width:100%;text-align:left;">
+    <h2>Claude 記憶機制 <span class="demo-tag">Live Demo</span></h2>
+    <div class="grid-2" style="margin-bottom:28px;">
+      <div class="card">
+        <div class="section-label">MEMORY</div>
+        <h3 style="font-size:22px;font-weight:700;margin-bottom:10px;">記住「你是誰」</h3>
+        <p style="font-size:16px;color:var(--text-dim);line-height:1.7;margin-bottom:20px;">跨對話自動保留你的個人資訊與偏好。<br>例如：角色、技術棧、工作習慣。</p>
+        <div style="background:var(--code-bg);border-radius:8px;padding:14px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--text-dim);border:1px solid var(--border);word-break:break-all;">
+          ~/.claude/projects/.../<span style="color:var(--accent-light);">memory/MEMORY.md</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="section-label" style="color:var(--green);">CLAUDE.MD</div>
+        <h3 style="font-size:22px;font-weight:700;margin-bottom:10px;">記住「專案是什麼」</h3>
+        <p style="font-size:16px;color:var(--text-dim);line-height:1.7;margin-bottom:20px;">在專案根目錄放一份 CLAUDE.md，<br>每次開啟 CLI 時自動載入作為上下文。</p>
+        <div class="code-block" style="font-size:14px;"><span class="prompt">$ </span><span class="cmd">claude</span><br><span class="prompt">&gt; </span><span class="cmd">/init</span><br><span class="comment">  # 自動分析專案並產生 CLAUDE.md</span></div>
+      </div>
+    </div>
+    <div class="card" style="padding:28px 32px;">
+      <h3 style="font-size:18px;margin-bottom:16px;font-weight:600;">兩者差異</h3>
+      <table class="compare-table">
+        <thead><tr><th></th><th>Memory 記憶</th><th>CLAUDE.md 專案說明</th></tr></thead>
+        <tbody>
+          <tr><td>用途</td><td>個人化偏好 & 資訊</td><td>專案規則 & 上下文</td></tr>
+          <tr><td>範圍</td><td>跨所有對話生效</td><td>僅該專案目錄下生效</td></tr>
+          <tr><td>建立方式</td><td>對話中要求 Claude 記住</td><td>/init 自動產生 或 手動撰寫</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== Page 6: 進入實務 ==================== -->
+<div class="slide center">
+  <div style="max-width:860px;width:100%;text-align:left;">
+    <h2>進入實務的範例</h2>
+    <div class="quote-block" style="margin-bottom:36px;">
+      今天真正想分享的重點不在設定，而是在<span class="highlight">「解決問題」</span>——<br>
+      一個想法從萌芽、執行到產生結果的完整過程。
+    </div>
+    <div class="quote-block" style="border-left-color:var(--border);margin-bottom:36px;">
+      我們不掉書袋，不拆解 Prompt 怎麼寫、不解釋 Context / Plan / Agent / Harness。<br>
+      因為學了一堆 AI 專有名詞，面對實際工作時，還是不知道能拿它來解決什麼問題。
+    </div>
+    <div style="background:var(--surface);border-radius:14px;padding:28px 32px;border:1px solid var(--border);display:flex;align-items:center;gap:24px;">
+      <div style="font-size:48px;flex-shrink:0;">🧑‍🌾</div>
+      <div>
+        <p style="font-size:18px;line-height:1.7;">
+          這就像你買了一把最頂級的<span style="color:var(--accent-light);font-weight:600;">「鋤頭」</span>，你知道怎麼揮動它，<br>
+          但你卻不知道這塊田要<span style="color:var(--accent-light);font-weight:600;">「種什麼作物」</span>，那工具再強大也只是白搭。
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== Page 7: 週進度助手 ==================== -->
+<div class="slide center">
+  <div style="max-width:1100px;width:100%;text-align:left;">
+    <h2>週進度助手 <span class="demo-tag">Live Demo</span></h2>
+    <div class="grid-2">
+      <div>
+        <div class="card" style="margin-bottom:24px;">
+          <div class="section-label" style="color:var(--red);">痛點</div>
+          <h3 style="font-size:20px;margin-bottom:10px;">每週一的記憶大考驗</h3>
+          <p style="font-size:16px;color:var(--text-dim);line-height:1.8;">
+            回想上週做了什麼，就像每天早上煩惱「要穿什麼」一樣，耗費不必要的腦力與時間。
+          </p>
+        </div>
+        <div class="card">
+          <div class="section-label" style="color:var(--green);">解決方案</div>
+          <h3 style="font-size:20px;margin-bottom:10px;">讓 Claude 自動對接工作軌跡</h3>
+          <p style="font-size:16px;color:var(--text-dim);line-height:1.8;">
+            而我則把思考的重點擺在——<br><span style="color:var(--accent-light);font-weight:500;">這週要做什麼</span>
+          </p>
+        </div>
+      </div>
+      <div>
+        <div class="card" style="height:100%;display:flex;flex-direction:column;justify-content:center;gap:20px;">
+          <div style="display:flex;align-items:center;gap:16px;">
+            <div class="icon-box" style="background:rgba(184,216,168,0.12);">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="3" stroke="#b8d8a8" stroke-width="2"/><path d="M8 12h8" stroke="#b8d8a8" stroke-width="2" stroke-linecap="round"/></svg>
+            </div>
+            <div>
+              <div style="font-size:17px;font-weight:600;">ClickUp MCP</div>
+              <div style="font-size:14px;color:var(--text-dim);">讀取任務狀態</div>
+            </div>
+          </div>
+          <div class="flow-arrow">+</div>
+          <div style="display:flex;align-items:center;gap:16px;">
+            <div class="icon-box" style="background:rgba(109,168,94,0.12);">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h10" stroke="#6da85e" stroke-width="2" stroke-linecap="round"/></svg>
+            </div>
+            <div>
+              <div style="font-size:17px;font-weight:600;">GitLab 紀錄</div>
+              <div style="font-size:14px;color:var(--text-dim);">讀取程式碼提交紀錄</div>
+            </div>
+          </div>
+          <div class="flow-arrow" style="font-size:22px;">&#8595;</div>
+          <div style="background:var(--code-bg);border:1px solid var(--border);border-radius:10px;padding:16px 20px;text-align:center;">
+            <div style="font-size:17px;font-weight:600;color:var(--accent-light);">自動生成週報</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== Page 8: MCP 介紹 ==================== -->
+<div class="slide center">
+  <div style="max-width:900px;width:100%;text-align:left;">
+    <h2>簡單介紹 <span class="accent">MCP</span></h2>
+    <p style="font-size:24px;color:var(--accent-light);font-weight:600;margin-bottom:32px;">MCP 就是 AI 的「萬用轉接頭」</p>
+    <div class="grid-2" style="max-width:900px;margin-bottom:36px;">
+      <div class="card" style="text-align:center;">
+        <div style="font-size:36px;margin-bottom:14px;">🔒</div>
+        <h3 style="font-size:18px;margin-bottom:10px;">過去</h3>
+        <p style="font-size:15px;color:var(--text-dim);line-height:1.7;">
+          AI 像被關在房間裡的高智商大腦，<br>
+          無法直接讀取外部資料。<br>
+          每種軟體都要寫專門的串接程式。
+        </p>
+      </div>
+      <div class="card" style="text-align:center;border-color:var(--accent-dim);">
+        <div style="font-size:36px;margin-bottom:14px;">🔌</div>
+        <h3 style="font-size:18px;margin-bottom:10px;">有了 MCP</h3>
+        <p style="font-size:15px;color:var(--text-dim);line-height:1.7;">
+          定出開源的標準通道。<br>
+          只要資料端支援 MCP，<br>
+          AI 就能直接、安全地讀取並互動。
+        </p>
+      </div>
+    </div>
+    <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;">
+      <span class="tag" style="font-size:14px;padding:6px 18px;">Google Drive</span>
+      <span class="tag" style="font-size:14px;padding:6px 18px;">Notion</span>
+      <span class="tag" style="font-size:14px;padding:6px 18px;">GitHub</span>
+      <span class="tag" style="font-size:14px;padding:6px 18px;">ClickUp</span>
+      <span class="tag" style="font-size:14px;padding:6px 18px;">GitLab</span>
+      <span class="tag" style="font-size:14px;padding:6px 18px;">Slack</span>
+      <span class="tag" style="font-size:14px;padding:6px 18px;">...</span>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== Page 9: 翻譯助手起源 ==================== -->
+<div class="slide center">
+  <div style="max-width:1100px;width:100%;text-align:left;">
+    <h2>Google Sheet 翻譯助手</h2>
+    <div class="grid-2">
+      <div>
+        <div class="card" style="margin-bottom:20px;">
+          <div class="section-label" style="color:var(--red);">痛點</div>
+          <p style="font-size:16px;color:var(--text-dim);line-height:1.8;">
+            企劃克克在做遊戲的多國語系表，嘗試將內容丟給 Gemini，但翻譯結果不理想。<br><br>
+            改為<span style="color:var(--text);font-weight:500;">一句一句</span>請 AI 翻譯，再<span style="color:var(--text);font-weight:500;">一句一句</span>貼回 Google Sheet。
+          </p>
+        </div>
+        <div class="card">
+          <div class="section-label" style="color:var(--green);">想法</div>
+          <p style="font-size:16px;color:var(--text-dim);line-height:1.8;">
+            一款遊戲 × 半小時<br>
+            <span style="color:var(--accent-light);font-weight:600;">十款遊戲 × 5 種語言 = 好幾天</span><br><br>
+            能不能讓 Claude 自動翻譯，<br>直接更新到 Google Sheet？
+          </p>
+        </div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#2a2318;">
+        <img src="img/page9.jpeg" style="width:100%;height:100%;object-fit:contain;" alt="Google Sheet 翻譯範例">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== Page 10: 翻譯助手 - 基礎設置 ==================== -->
+<div class="slide center">
+  <div style="max-width:1100px;width:100%;text-align:left;">
+    <h2>翻譯助手 — 基礎設置</h2>
+    <div style="display:flex;gap:32px;align-items:stretch;">
+      <div style="flex:1;display:flex;flex-direction:column;gap:16px;">
+        <div class="card" style="display:flex;gap:16px;align-items:flex-start;">
+          <span class="step-num" style="font-size:20px;margin-top:2px;">1</span>
+          <div>
+            <div style="font-size:17px;font-weight:600;margin-bottom:4px;">建立資料夾 + /init</div>
+            <div style="font-size:14px;color:var(--text-dim);line-height:1.6;">建立 <code style="color:var(--accent-light);">Google Sheet 翻譯助手</code> 資料夾，開 Claude 執行 /init 產生 CLAUDE.md</div>
+          </div>
+        </div>
+        <div class="card" style="display:flex;gap:16px;align-items:flex-start;">
+          <span class="step-num" style="font-size:20px;margin-top:2px;">2</span>
+          <div>
+            <div style="font-size:17px;font-weight:600;margin-bottom:4px;">放入 JSON 憑證</div>
+            <div style="font-size:14px;color:var(--text-dim);line-height:1.6;">之前做 Unity Editor 工具時就知道需要 Google API 憑證，把它放進資料夾</div>
+          </div>
+        </div>
+        <div class="card" style="display:flex;gap:16px;align-items:flex-start;">
+          <span class="step-num" style="font-size:20px;margin-top:2px;">3</span>
+          <div>
+            <div style="font-size:17px;font-weight:600;margin-bottom:4px;">提供 Google Sheet 網址</div>
+            <div style="font-size:14px;color:var(--text-dim);line-height:1.6;">告訴 AI 去讀取這份試算表，翻譯缺少的內容</div>
+          </div>
+        </div>
+        <div class="card" style="display:flex;gap:16px;align-items:flex-start;">
+          <span class="step-num" style="font-size:20px;margin-top:2px;">4</span>
+          <div>
+            <div style="font-size:17px;font-weight:600;margin-bottom:4px;">驗證 + 補上 CLAUDE.md</div>
+            <div style="font-size:14px;color:var(--text-dim);line-height:1.6;">結果正確後，請 AI 把完整流程寫回 CLAUDE.md</div>
+          </div>
+        </div>
+      </div>
+      <div style="flex:0 0 340px;">
+        <div class="card" style="height:100%;display:flex;flex-direction:column;justify-content:center;border-color:var(--accent-dim);">
+          <div style="font-size:15px;color:var(--accent-light);font-weight:600;margin-bottom:16px;text-align:center;">AI 的工具箱</div>
+          <div class="code-block" style="font-size:13px;line-height:2;">
+            <span style="color:var(--text-dim);">Google Sheet 翻譯助手/</span><br>
+            ├── <span style="color:var(--accent-light);">CLAUDE.md</span><br>
+            ├── <span style="color:var(--green);">credentials.json</span><br>
+            ├── translate.py<br>
+            └── ...
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== Page 11: 翻譯助手 - 如何讓企劃使用 ==================== -->
+<div class="slide center">
+  <div style="max-width:1100px;width:100%;text-align:left;">
+    <h2>翻譯助手 — 如何讓企劃使用</h2>
+    <div style="display:flex;gap:32px;align-items:stretch;">
+      <div style="flex:1;">
+        <div class="card" style="margin-bottom:20px;">
+          <div class="section-label" style="color:var(--red);">問題</div>
+          <p style="font-size:16px;color:var(--text-dim);line-height:1.7;">工具只在我的電腦上、只有我會用 CLI。<br><span style="color:var(--text);">克克、企劃、其他開發者要怎麼用？</span></p>
+        </div>
+        <div class="card">
+          <div class="section-label" style="color:var(--green);">解法</div>
+          <p style="font-size:16px;color:var(--text-dim);line-height:1.7;margin-bottom:16px;">
+            邊板機上已有 Discord Bot，<br>
+            建一條 <code style="color:var(--accent-light);">/translate</code> 指令，<br>
+            企劃輸入自然語言就能觸發翻譯。
+          </p>
+          <p style="font-size:14px;color:var(--text-dim);line-height:1.6;">
+            Bot 不解析參數、不組指令，<br>
+            只負責把企劃的話轉交給 Claude。<br>
+            Claude 自己讀 CLAUDE.md 決定怎麼做。
+          </p>
+        </div>
+      </div>
+      <div style="flex:1;">
+        <div class="card" style="height:100%;">
+          <div style="font-size:14px;color:var(--accent-light);font-weight:600;margin-bottom:14px;">Discord Bot 核心程式碼</div>
+          <div class="code-block" style="font-size:13px;line-height:1.8;">
+<span class="kw">spawn</span>(<span class="str">'claude'</span>, [
+  <span class="str">'--print'</span>,
+  <span class="str">'--output-format'</span>, <span class="str">'stream-json'</span>,
+  <span class="str">'--verbose'</span>,
+  <span class="str">'--dangerously-skip-permissions'</span>,
+  <span class="str">'--model'</span>, <span class="str">'sonnet'</span>,
+  userPrompt,
+], {
+  <span class="kw">cwd</span>: <span class="str">'/path/to/Google Sheet 翻譯助手'</span>,
+});
+          </div>
+          <div style="margin-top:16px;font-size:13px;color:var(--text-dim);line-height:1.7;">
+            <span style="color:var(--accent);">stream-json</span> — Bot 監聽輸出，<br>每 5 秒更新 Discord Embed 顯示進度。
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== Page 12: 翻譯助手 - 校正 AI ==================== -->
+<div class="slide center">
+  <div style="max-width:1100px;width:100%;text-align:left;">
+    <h2>翻譯助手 — 校正 AI</h2>
+    <p style="font-size:17px;color:var(--text-dim);line-height:1.7;margin-bottom:28px;">
+      過程中 AI 有不理想的結果，我會告訴他問題在哪，然後讓他把反饋紀錄到 CLAUDE.md 中。<br>
+      企劃使用過程中遇到問題，也用這種方式校正，持續提高準確性。
+    </p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div class="feedback-item">
+        <div class="fb-title">反饋 1：不該更新 Common/Dialog</div>
+        <div class="fb-rule">「更新 001 的字串表」只更新遊戲專屬表，不連共用表一起更新。</div>
+      </div>
+      <div class="feedback-item">
+        <div class="fb-title">反饋 2：摘要用詞要正確</div>
+        <div class="fb-rule">使用者沒有要求翻譯，不該出現「翻譯流程已結束」。改用 [更新摘要] 前綴。</div>
+      </div>
+      <div class="feedback-item">
+        <div class="fb-title">反饋 3：列出具體 key 名稱</div>
+        <div class="fb-rule">不能只回報「新增 key：1 個」，要列出每個 key 名稱。</div>
+      </div>
+      <div class="feedback-item">
+        <div class="fb-title">反饋 4：自動推到 Git</div>
+        <div class="fb-rule">更新後一律自動 commit 並 push，除非明確要求 dry-run。</div>
+      </div>
+    </div>
+    <div style="margin-top:24px;background:var(--surface);border-radius:10px;padding:18px 24px;border-left:3px solid var(--accent);">
+      <p style="font-size:16px;color:var(--accent-light);font-weight:500;">每次反饋都寫回 CLAUDE.md → AI 的準確性逐次提升</p>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== Page 13: 自動更新多語系表 - 痛點 ==================== -->
+<div class="slide center">
+  <div style="max-width:1000px;width:100%;text-align:left;">
+    <h2>遊戲專案自動更新多語系表</h2>
+    <div class="card" style="margin-bottom:28px;">
+      <div class="section-label" style="color:var(--red);">原本的流程</div>
+      <div style="display:flex;align-items:center;gap:20px;margin-top:16px;flex-wrap:wrap;">
+        <div style="background:var(--code-bg);border:1px solid var(--border);border-radius:10px;padding:16px 22px;text-align:center;flex:1;min-width:200px;">
+          <div style="font-size:15px;font-weight:600;">1. Unity 開啟遊戲專案</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div style="background:var(--code-bg);border:1px solid var(--border);border-radius:10px;padding:16px 22px;text-align:center;flex:1;min-width:200px;">
+          <div style="font-size:15px;font-weight:600;">2. 下載 CSV</div>
+          <div style="font-size:13px;color:var(--text-dim);">從 Google Sheet</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div style="background:var(--code-bg);border:1px solid var(--border);border-radius:10px;padding:16px 22px;text-align:center;flex:1;min-width:200px;">
+          <div style="font-size:15px;font-weight:600;">3. Unity 匯入</div>
+          <div style="font-size:13px;color:var(--text-dim);">多國語系工具</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-label" style="color:var(--accent);">問題</div>
+      <p style="font-size:17px;color:var(--text-dim);line-height:1.8;margin-top:8px;">
+        做了一鍵更新工具，省去下載 CSV，但<span style="color:var(--text);font-weight:500;">還是要開 Unity</span>。<br>
+        未來很多款遊戲，要一款一款開啟更新，太麻煩。<br><br>
+        <span style="color:var(--accent-light);font-weight:600;">能不能在不開遊戲專案的情況下，自動更新多語系表？</span>
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== Page 14: 自動更新多語系表 - 解法 ==================== -->
+<div class="slide center">
+  <div style="max-width:1000px;width:100%;text-align:left;">
+    <h2>自動更新多語系表 — 解法</h2>
+    <div class="grid-2" style="max-width:1000px;margin-bottom:28px;">
+      <div class="card">
+        <div class="section-label" style="color:var(--green);">同樣的模式</div>
+        <div style="display:flex;flex-direction:column;gap:14px;margin-top:12px;">
+          <div style="display:flex;gap:12px;align-items:flex-start;">
+            <span class="step-num" style="font-size:18px;">1</span>
+            <p style="font-size:15px;color:var(--text-dim);line-height:1.6;">建立 <code style="color:var(--accent-light);">string-table-updater</code> 資料夾，撰寫需求文件</p>
+          </div>
+          <div style="display:flex;gap:12px;align-items:flex-start;">
+            <span class="step-num" style="font-size:18px;">2</span>
+            <p style="font-size:15px;color:var(--text-dim);line-height:1.6;">放進邊板機</p>
+          </div>
+          <div style="display:flex;gap:12px;align-items:flex-start;">
+            <span class="step-num" style="font-size:18px;">3</span>
+            <p style="font-size:15px;color:var(--text-dim);line-height:1.6;">讓 <code style="color:var(--accent-light);">/translate</code> 指令也能使用這個功能</p>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="border-color:var(--accent-dim);">
+        <div style="font-size:14px;color:var(--accent-light);font-weight:600;margin-bottom:16px;text-align:center;">一句話搞定</div>
+        <div class="code-block" style="font-size:15px;text-align:center;padding:24px;">
+          <span class="str">「幫我更新 Slot014 專案的多語系表」</span>
+        </div>
+        <div style="margin-top:16px;text-align:center;">
+          <div class="flow-arrow" style="font-size:20px;">&#8595;</div>
+          <p style="font-size:14px;color:var(--text-dim);line-height:1.8;margin-top:8px;">
+            自動讀取遊戲專案資料<br>
+            更新 StringTable<br>
+            Commit + Push 到 Git
+          </p>
+        </div>
+      </div>
+    </div>
+    <div style="background:var(--surface);border-radius:10px;padding:18px 24px;border-left:3px solid var(--accent);">
+      <p style="font-size:16px;color:var(--accent-light);font-weight:500;">一旦建立了「AI 工具 + Discord Bot」基礎建設，後續每個自動化都只是加一條指令的事</p>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== Page 15: Cocos MCP ==================== -->
+<div class="slide center">
+  <div style="max-width:1000px;width:100%;text-align:left;">
+    <h2>Cocos MCP 搭建 Unity 介面 <span class="demo-tag">Live Demo</span></h2>
+    <div class="card" style="margin-bottom:28px;">
+      <div class="section-label">背景</div>
+      <p style="font-size:17px;color:var(--text-dim);line-height:1.8;margin-top:8px;">
+        阿貴想做一個 Cocos 版本，來比對和 Unity 的差異。<br>
+        我想：能不能用 <span style="color:var(--accent-light);font-weight:500;">MCP</span> 讓 AI 直接在 Cocos 引擎裡搭建介面？
+      </p>
+    </div>
+    <div class="grid-3" style="max-width:1000px;">
+      <div class="card" style="text-align:center;">
+        <span class="step-num" style="font-size:22px;display:block;margin-bottom:12px;">1</span>
+        <h3 style="font-size:17px;margin-bottom:8px;">Unity 搭建介面</h3>
+        <p style="font-size:14px;color:var(--text-dim);line-height:1.6;">先在 Unity 中搭好一個簡易的參考介面</p>
+      </div>
+      <div class="card" style="text-align:center;">
+        <span class="step-num" style="font-size:22px;display:block;margin-bottom:12px;">2</span>
+        <h3 style="font-size:17px;margin-bottom:8px;">安裝 Cocos MCP</h3>
+        <p style="font-size:14px;color:var(--text-dim);line-height:1.6;">讓 Claude 下載並設定 Cocos Creator 的 MCP</p>
+      </div>
+      <div class="card" style="text-align:center;">
+        <span class="step-num" style="font-size:22px;display:block;margin-bottom:12px;">3</span>
+        <h3 style="font-size:17px;margin-bottom:8px;">AI 搭建 Cocos 介面</h3>
+        <p style="font-size:14px;color:var(--text-dim);line-height:1.6;">叫 AI 在 Cocos 中複刻一樣的介面</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== Page 16: 醞釀中的想法 ==================== -->
+<div class="slide center">
+  <div style="max-width:1100px;width:100%;text-align:left;">
+    <h2>醞釀中的想法 <span class="tag explore" style="margin-left:12px;font-size:13px;padding:4px 14px;vertical-align:middle;">探索中</span></h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+      <div class="idea-card">
+        <h4>自動更新多語系素材</h4>
+        <p>去 NAS 抓取遊戲的多語系素材，自動套用到素材表。未來新增語系（如日文）時，不用逐一開啟專案。</p>
+      </div>
+      <div class="idea-card">
+        <h4>自動檢查美術素材完整性</h4>
+        <p>讓 AI 自動比對素材清單與實際檔案，找出遺漏或命名不一致的項目。</p>
+      </div>
+      <div class="idea-card">
+        <h4>自動填寫遊戲企劃書</h4>
+        <p>企劃克克的構想——不懂 AI 的企劃也能先行動：先寫好想自動化的內容（也就是 CLAUDE.md），其他交給 AI。</p>
+      </div>
+      <div class="idea-card">
+        <h4>新專案自動初始化</h4>
+        <p>開新遊戲專案時，讓 AI 完成基本的 Loading 介面、核心設定等。開發人員更專注在遊戲表演串接上。</p>
+      </div>
+    </div>
+    <div style="margin-top:28px;background:var(--surface);border-radius:10px;padding:18px 24px;border-left:3px solid var(--accent);">
+      <p style="font-size:16px;color:var(--accent-light);">有些繁瑣的事情，都可以來試著構想讓 AI 幫我們完成。</p>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== Page 17: Q&A ==================== -->
+<div class="slide center">
+  <div style="max-width:700px;">
+    <h1 style="font-size:64px;font-weight:900;background:linear-gradient(135deg,#fff,#dce8d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:24px;">Q & A</h1>
+    <p style="font-size:20px;color:var(--text-dim);line-height:1.8;margin-bottom:48px;">
+      如果你有重複性的工作，<br>我們可以一起腦力激盪能不能用 Claude 解決。
+    </p>
+    <div style="border-top:1px solid var(--border);padding-top:28px;">
+      <p style="font-size:17px;color:var(--text-dim);line-height:1.8;">
+        <span style="color:var(--accent-light);font-weight:500;">徐至平 Pin</span>
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- Shortcuts overlay -->
+<div class="shortcuts-overlay" id="shortcutsOverlay" onclick="this.classList.remove('show')">
+  <div class="shortcuts-box" onclick="event.stopPropagation()">
+    <h3>快捷鍵</h3>
+    <div class="row"><span>下一頁</span> <span><kbd>&rarr;</kbd> / <kbd>Space</kbd></span></div>
+    <div class="row"><span>上一頁</span> <span><kbd>&larr;</kbd></span></div>
+    <div class="row"><span>第一頁</span> <span><kbd>Home</kbd></span></div>
+    <div class="row"><span>最後一頁</span> <span><kbd>End</kbd></span></div>
+    <div class="row"><span>說明</span> <span><kbd>?</kbd></span></div>
+  </div>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const progress = document.getElementById('progress');
+  const pageNum = document.getElementById('pageNum');
+  let current = 0;
+
+  function showSlide(n) {
+    if (n < 0 || n >= slides.length) return;
+    slides[current].classList.remove('active');
+    current = n;
+    slides[current].classList.add('active');
+    progress.style.width = ((current + 1) / slides.length * 100) + '%';
+    pageNum.textContent = (current + 1) + ' / ' + slides.length;
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); showSlide(current + 1); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); showSlide(current - 1); }
+    else if (e.key === 'Home') { e.preventDefault(); showSlide(0); }
+    else if (e.key === 'End') { e.preventDefault(); showSlide(slides.length - 1); }
+    else if (e.key === '?') { document.getElementById('shortcutsOverlay').classList.toggle('show'); }
+  });
+
+  showSlide(0);
+</script>
+</body>
+</html>
