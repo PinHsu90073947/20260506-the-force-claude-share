@@ -895,27 +895,29 @@
       </p>
     </div>
   </div>
-  <img id="flyingMan" src="img/flying_man.png" alt="">
+  <div id="flyingLayer"></div>
 </div>
 
 <style>
-  #flyingMan {
+  #flyingLayer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .flying-man {
     position: absolute;
     top: 50%;
     left: -260px;
     width: auto;
     height: 360px;
     transform: translateY(-50%);
-    opacity: 0;
     pointer-events: none;
-    z-index: 50;
-  }
-  #flyingMan.fly {
-    animation: flyAcross 1s linear forwards;
+    animation: flyAcross 2s linear forwards;
   }
   @keyframes flyAcross {
-    0%   { left: -260px; opacity: 1; }
-    100% { left: calc(100vw + 20px); opacity: 1; }
+    0%   { left: -260px; }
+    100% { left: calc(100vw + 20px); }
   }
 </style>
 
@@ -936,29 +938,52 @@
   const progress = document.getElementById('progress');
   const pageNum = document.getElementById('pageNum');
   const qaSlide = document.getElementById('qaSlide');
-  const flyingMan = document.getElementById('flyingMan');
+  const flyingLayer = document.getElementById('flyingLayer');
   const qaSlideIndex = Array.from(slides).indexOf(qaSlide);
   let current = 0;
   let flyTimer = null;
+  let flyRound = 0; // 0..9, increments each wave; count = (flyRound % 10) + 1
+
+  function spawnWave(count) {
+    flyingLayer.innerHTML = '';
+    const FLIGHT_MS = 2000;
+    const STAGGER_MS = 220; // gap between successive flyers
+    for (let i = 0; i < count; i++) {
+      const idx = ((i) % 10) + 1; // pick variant 1..10
+      const img = document.createElement('img');
+      img.className = 'flying-man';
+      img.src = `img/flying_man_${idx}.webp`;
+      img.alt = '';
+      // vary vertical position slightly so they don't completely overlap
+      const offset = (i - (count - 1) / 2) * 28;
+      img.style.top = `calc(50% + ${offset}px)`;
+      img.style.animationDelay = `${i * STAGGER_MS}ms`;
+      flyingLayer.appendChild(img);
+      // remove after animation finishes (delay + duration + buffer)
+      setTimeout(() => img.remove(), i * STAGGER_MS + FLIGHT_MS + 100);
+    }
+    // total wave duration for next-tick scheduling
+    return (count - 1) * STAGGER_MS + FLIGHT_MS;
+  }
 
   function startFlyingMan() {
     stopFlyingMan();
-    const tick = () => {
-      flyingMan.classList.remove('fly');
-      // force reflow so animation can restart
-      void flyingMan.offsetWidth;
-      flyingMan.classList.add('fly');
+    flyRound = 0;
+    const scheduleNext = (delay) => {
+      flyTimer = setTimeout(() => {
+        const count = (flyRound % 10) + 1;
+        const waveMs = spawnWave(count);
+        flyRound++;
+        scheduleNext(waveMs + 10000); // wait until wave finishes + 10s
+      }, delay);
     };
-    // initial wait 10s, then run, then every (animation 1s + 10s) ≈ 11s
-    flyTimer = setTimeout(function loop() {
-      tick();
-      flyTimer = setTimeout(loop, 11000);
-    }, 10000);
+    scheduleNext(10000); // first wait 10s
   }
 
   function stopFlyingMan() {
     if (flyTimer) { clearTimeout(flyTimer); flyTimer = null; }
-    if (flyingMan) flyingMan.classList.remove('fly');
+    if (flyingLayer) flyingLayer.innerHTML = '';
+    flyRound = 0;
   }
 
   function showSlide(n) {
