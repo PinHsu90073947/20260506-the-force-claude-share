@@ -883,7 +883,7 @@
 </div>
 
 <!-- ==================== Page 17: Q&A ==================== -->
-<div class="slide center">
+<div class="slide center" id="qaSlide">
   <div style="max-width:700px;">
     <h1 style="font-size:64px;font-weight:900;background:linear-gradient(135deg,#2d1d10,#8a5a30);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:24px;">Q & A</h1>
     <p style="font-size:20px;color:var(--text-dim);line-height:1.8;margin-bottom:48px;">
@@ -895,7 +895,29 @@
       </p>
     </div>
   </div>
+  <img id="flyingMan" src="img/flying_man.png" alt="">
 </div>
+
+<style>
+  #flyingMan {
+    position: absolute;
+    top: 50%;
+    left: -260px;
+    width: auto;
+    height: 360px;
+    transform: translateY(-50%);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 50;
+  }
+  #flyingMan.fly {
+    animation: flyAcross 1s linear forwards;
+  }
+  @keyframes flyAcross {
+    0%   { left: -260px; opacity: 1; }
+    100% { left: calc(100vw + 20px); opacity: 1; }
+  }
+</style>
 
 <!-- Shortcuts overlay -->
 <div class="shortcuts-overlay" id="shortcutsOverlay" onclick="this.classList.remove('show')">
@@ -913,7 +935,31 @@
   const slides = document.querySelectorAll('.slide');
   const progress = document.getElementById('progress');
   const pageNum = document.getElementById('pageNum');
+  const qaSlide = document.getElementById('qaSlide');
+  const flyingMan = document.getElementById('flyingMan');
+  const qaSlideIndex = Array.from(slides).indexOf(qaSlide);
   let current = 0;
+  let flyTimer = null;
+
+  function startFlyingMan() {
+    stopFlyingMan();
+    const tick = () => {
+      flyingMan.classList.remove('fly');
+      // force reflow so animation can restart
+      void flyingMan.offsetWidth;
+      flyingMan.classList.add('fly');
+    };
+    // initial wait 10s, then run, then every (animation 1s + 10s) ≈ 11s
+    flyTimer = setTimeout(function loop() {
+      tick();
+      flyTimer = setTimeout(loop, 11000);
+    }, 10000);
+  }
+
+  function stopFlyingMan() {
+    if (flyTimer) { clearTimeout(flyTimer); flyTimer = null; }
+    if (flyingMan) flyingMan.classList.remove('fly');
+  }
 
   function showSlide(n) {
     if (n < 0 || n >= slides.length) return;
@@ -922,6 +968,8 @@
     slides[current].classList.add('active');
     progress.style.width = ((current + 1) / slides.length * 100) + '%';
     pageNum.textContent = (current + 1) + ' / ' + slides.length;
+    if (current === qaSlideIndex) startFlyingMan();
+    else stopFlyingMan();
   }
 
   document.addEventListener('keydown', (e) => {
